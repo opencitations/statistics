@@ -19,6 +19,7 @@ __author__ = 'essepuntato'
 from datetime import datetime
 from SPARQLWrapper import SPARQLWrapper, JSON
 from json import load
+from os import path, makedirs
 
 # Load the configuration file
 with open("conf.json") as f:
@@ -110,5 +111,10 @@ for idx, query in enumerate(queries):
         for result in results["results"]["bindings"]:
             res += "," + result["tot"]["value"]
 
-with open(c["file"], "a") as f:
+stat_file = c["file"]
+stat_dir = path.dirname(stat_file)
+if not path.exists(stat_dir):
+    makedirs(stat_dir)
+
+with open(stat_file, "a") as f:
     f.write(res + "\n")
