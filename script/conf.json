@@ -1,0 +1,4 @@
+{
+  "tp": "http://localhost:3000/blazegraph/sparql",
+  "file": "/srv/data/log/occ_statistics.csv"
+}
