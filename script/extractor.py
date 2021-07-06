@@ -18,8 +18,8 @@ __author__ = 'giuseppegrieco'
 
 '''
 This script is run monthly and takes as input the monthly activity in terms
-of acces to the differents endpoints. The output is a prometheus-like file
-containing differents statistics on the accesses of the month. 
+of access to the different endpoints. The output is a prometheus-like file
+containing different statistics on the accesses of the month. 
 
 Syntax: python stats.py <logfile.txt> <output_path>*
 
@@ -28,11 +28,21 @@ directory.
 '''
 import argparse
 import re
+import json
 from os.path import isdir, isfile, sep
 
-from prometheus_client import Counter, CollectorRegistry, write_to_textfile, Gauge
+from prometheus_client import Counter, CollectorRegistry, write_to_textfile, Gauge, Info
 
-# Directory type in order to check whether the indicated file exists or not,
+# Input file in order to check whether the indicated file exists or not,
+# and is a json file
+def input_file_json(string):
+    if isfile(string):
+        if '.json' in string:
+            return string
+        raise ValueError(string)
+    raise FileNotFoundError(string)
+
+# Input file in order to check whether the indicated file exists or not,
 # and is a txt file
 def input_file(string):
     if isfile(string):
@@ -43,6 +53,8 @@ def input_file(string):
 
 # Directory type in order to check whether the indicated path exists or not
 def directory(string):
+    if not string.endswith(sep):
+        string = string + sep
     if isdir(string):
         return string
     raise NotADirectoryError(string)
@@ -57,10 +69,15 @@ parser.add_argument(
     type=input_file
 )
 parser.add_argument(
+    "externalIndicators",
+    help='input file (.json) containing additional indicators',
+    type=input_file_json
+)
+parser.add_argument(
     '--output-dir', 
     help='the path in which to save the output file', 
     type=directory, 
-    default='./'
+    default='.' + sep
 )
 
 args = parser.parse_args()
@@ -72,6 +89,9 @@ output_path = args.output_dir
 # to a specific endpoint,  all the informations contained in a line 
 # are separated by the character '#'
 log_file = args.logfile
+
+# File containing additional statistics
+external_indicators_file = args.externalIndicators
 
 ends_withs = {
     # SPARQL endpoints:
@@ -166,18 +186,36 @@ for line in file.readlines():
 
 
 # Additional statistics
+file = open(external_indicators_file, 'r')
+external_indicators = json.load(file)
 indexed_records = Gauge(
     'indexed_records', 
     'Indexed records', 
     registry=registry
 )
-indexed_records.set(759516507)
+indexed_records.set(
+    external_indicators["indexed_records"]
+)
 harvested_data_sources = Gauge(
     'harvested_data_sources', 
     'Harvested data sources', 
     registry=registry
 )
-harvested_data_sources.set(4)
+harvested_data_sources.set(
+    external_indicators["harvested_data_sources"]
+)
+file.close()
+
+
+# Add the date as info
+i = Info(
+    'date', 
+    'Date to which the statistics refers to', 
+    registry=registry
+)
+date_split = log_file.split(sep)[-1].replace('.txt', '').replace("oc-", "")
+date_split = date_split.split("-")
+i.info({'month': date_split[1], 'year': date_split[0]})
 
 # Write the obtained statistics in a file
 output_file = log_file.split(sep)[-1].replace('.txt', '.prom')
