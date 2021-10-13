@@ -123,7 +123,7 @@ registry = CollectorRegistry()
 
 # Counter of accesses to different endpoints oc 
 http_requests = Counter(
-    'oc_http_requests', 
+    'opencitations_http_requests', 
     'Counter for HTTP requests to opencitations endpoints', 
     ['endpoint'], 
     registry=registry
@@ -131,7 +131,7 @@ http_requests = Counter(
 
 # Aggregate counter of accesses to the different categories of endpoints oc
 agg_counter = Counter(
-    'oc_agg_counter', 
+    'opencitations_agg_counter', 
     'Aggregate HTTP requests counter to opencitations endpoints', 
     ['category'], 
     registry=registry
@@ -189,7 +189,7 @@ for line in file.readlines():
 file = open(external_indicators_file, 'r')
 external_indicators = json.load(file)
 indexed_records = Gauge(
-    'oc_indexed_records', 
+    'opencitations_indexed_records', 
     'Indexed records', 
     registry=registry
 )
@@ -197,7 +197,7 @@ indexed_records.set(
     external_indicators["indexed_records"]
 )
 harvested_data_sources = Gauge(
-    'oc_harvested_data_sources', 
+    'opencitations_harvested_data_sources', 
     'Harvested data sources', 
     registry=registry
 )
@@ -209,7 +209,7 @@ file.close()
 
 # Add the date as info
 i = Info(
-    'oc_date', 
+    'opencitations_date', 
     'Date to which the statistics refers to', 
     registry=registry
 )
