@@ -152,14 +152,20 @@ for substr in contains:
 
 # goes through every line of the log file
 rgx = re.compile('(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)')
+rgx_2 = re.compile('(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)')
 file = open(log_file, 'r')
 for line in file.readlines():
     line = line.strip()
-    if rgx.match(line):
-        groups = rgx.search(line).groups()
-        
+    match_1 = rgx.match(line)
+    match_2 = rgx_2.match(line)
+    if match_2 or match_1:
+        if match_2:
+            groups = rgx_2.search(line).groups()
+        else:
+            groups = rgx.search(line).groups()
+            
         # split and parse the differents attributes of the current line
-        request_uri = groups[10]
+        request_uri = groups[10].strip()
 
         # It checks if the request made is of a specific type, 
         # if it's so it increases the counter of that request,
@@ -169,7 +175,7 @@ for line in file.readlines():
         # to its category is updated.
         found = False
         for suffix in ends_withs:
-            if(request_uri.endswith(suffix)):
+            if(request_uri.startswith(suffix)):
                 http_requests.labels(suffix).inc()
                 agg_counter.labels(ends_withs[suffix] + '_requests').inc()
                 found = True
