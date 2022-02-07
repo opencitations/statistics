@@ -119,6 +119,42 @@ contains = {
     '/intrepid': 'additional_services'
 }
 
+contains_keys = [
+    '/index/api/v1/',
+    '/index/coci/api/v1/',
+    '/index/croci/api/v1/',
+    '/ccc/api/v1/',
+    '/api/v1/',
+
+    # Dataset resources:
+    '/corpus/',
+    '/index/coci/ci/',
+    '/index/croci/ci/',
+    '/ccc/',
+
+    # Additional services:
+    '/oci',
+    '/intrepid'
+]
+
+contains_values = [
+    'oc_api',
+    'oc_api',
+    'oc_api',
+    'oc_api',
+    'oc_api',
+
+    # Dataset resources:
+    'dataset',
+    'dataset',
+    'dataset',
+    'dataset',
+
+    # Additional services:
+    'additional_services',
+    'additional_services'
+]
+
 registry = CollectorRegistry()
 
 # Counter of accesses to different endpoints oc 
@@ -181,10 +217,10 @@ for line in file.readlines():
                 found = True
                 break
         if not found:
-            for substr in contains:
-                if substr in request_uri:
-                    http_requests.labels(substr).inc()
-                    agg_counter.labels(contains[substr] + '_requests').inc()
+            for i in range(0, len(contains_keys)):
+                if contains_keys[i] in request_uri:
+                    http_requests.labels(contains_keys[i]).inc()
+                    agg_counter.labels(contains_values[i] + '_requests').inc()
                     found = True
                     break
             if not found:
