@@ -19,7 +19,7 @@ __author__ = 'giuseppegrieco'
 '''
 This script is run monthly and takes as input the monthly activity in terms
 of access to the different endpoints. The output is a prometheus-like file
-containing different statistics on the accesses of the month. 
+containing different statistics on the accesses of the month.
 
 Syntax: python stats.py <logfile.txt> <output_path>*
 
@@ -64,8 +64,8 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument(
-    'logfile', 
-    help='input file (.txt) containing monthly accesses to oc', 
+    'logfile',
+    help='input file (.txt) containing monthly accesses to oc',
     type=input_file
 )
 parser.add_argument(
@@ -74,9 +74,9 @@ parser.add_argument(
     type=input_file_json
 )
 parser.add_argument(
-    '--output-dir', 
-    help='the path in which to save the output file', 
-    type=directory, 
+    '--output-dir',
+    help='the path in which to save the output file',
+    type=directory,
     default='.' + sep
 )
 
@@ -85,8 +85,8 @@ args = parser.parse_args()
 # Directory in which to save the output file
 output_path = args.output_dir
 
-# File containg log activity for a given month: each line is an access 
-# to a specific endpoint,  all the informations contained in a line 
+# File containg log activity for a given month: each line is an access
+# to a specific endpoint,  all the informations contained in a line
 # are separated by the character '#'
 log_file = args.logfile
 
@@ -103,13 +103,19 @@ ends_withs = {
 contains = {
     # REST API di OpenCitation
     '/index/api/v1/': 'oc_api',
+    '/index/api/v2/': 'oc_api',
     '/index/coci/api/v1/': 'oc_api',
     '/index/croci/api/v1/': 'oc_api',
+    '/meta/api/v1/': 'oc_api',
+    '/meta/api/v2/': 'oc_api',
     '/ccc/api/v1/': 'oc_api',
     '/api/v1/': 'oc_api',
+    '/api/v2/': 'oc_api',
 
     # Dataset resources:
     '/corpus/': 'dataset',
+    '/index/': 'dataset',
+    '/index/ci/': 'dataset',
     '/index/coci/ci/': 'dataset',
     '/index/croci/ci/': 'dataset',
     '/ccc/': 'dataset',
@@ -121,13 +127,19 @@ contains = {
 
 contains_keys = [
     '/index/api/v1/',
+    '/index/api/v2/',
     '/index/coci/api/v1/',
     '/index/croci/api/v1/',
+    '/meta/api/v1/',
+    '/meta/api/v2/',
     '/ccc/api/v1/',
     '/api/v1/',
+    '/api/v2/',
 
     # Dataset resources:
     '/corpus/',
+    '/index/',
+    '/index/ci/',
     '/index/coci/ci/',
     '/index/croci/ci/',
     '/ccc/',
@@ -143,8 +155,14 @@ contains_values = [
     'oc_api',
     'oc_api',
     'oc_api',
+    'oc_api',
+    'oc_api',
+    'oc_api',
+    'oc_api',
 
     # Dataset resources:
+    'dataset',
+    'dataset',
     'dataset',
     'dataset',
     'dataset',
@@ -157,19 +175,19 @@ contains_values = [
 
 registry = CollectorRegistry()
 
-# Counter of accesses to different endpoints oc 
+# Counter of accesses to different endpoints oc
 http_requests = Counter(
-    'opencitations_http_requests', 
-    'Counter for HTTP requests to opencitations endpoints', 
-    ['endpoint'], 
+    'opencitations_http_requests',
+    'Counter for HTTP requests to opencitations endpoints',
+    ['endpoint'],
     registry=registry
 )
 
 # Aggregate counter of accesses to the different categories of endpoints oc
 agg_counter = Counter(
-    'opencitations_agg_counter', 
-    'Aggregate HTTP requests counter to opencitations endpoints', 
-    ['category'], 
+    'opencitations_agg_counter',
+    'Aggregate HTTP requests counter to opencitations endpoints',
+    ['category'],
     registry=registry
 )
 
@@ -187,29 +205,28 @@ for substr in contains:
     http_requests.labels(substr)
 
 # goes through every line of the log file
-rgx = re.compile('(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)')
-rgx_2 = re.compile('(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)')
+#rgx = re.compile('(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)#(.*):(.*)')
+
+rgx = re.compile('(.*)#( REMOTE_ADDR):(.*)#( HTTP_USER_AGENT):(.*)#( HTTP_REFERER):(.*)#( HTTP_HOST):(.*)#( REQUEST_URI):(.*)#( HTTP_AUTHORIZATION):(.*)')
+
 file = open(log_file, 'r')
 for line in file.readlines():
     line = line.strip()
     match_1 = rgx.match(line)
-    match_2 = rgx_2.match(line)
-    if match_2 or match_1:
-        if match_2:
-            groups = rgx_2.search(line).groups()
-        else:
-            groups = rgx.search(line).groups()
-            
+    if match_1:
+        groups = rgx.search(line).groups()
+
         # split and parse the differents attributes of the current line
         request_uri = groups[10].strip()
 
-        # It checks if the request made is of a specific type, 
+        # It checks if the request made is of a specific type,
         # if it's so it increases the counter of that request,
         # otherwise the aggregate counter `agg_others_requests`
         # increases. In the case the counter of any request type
         # is updated even the aggregated counter corresponding
         # to its category is updated.
         found = False
+
         for suffix in ends_withs:
             if(request_uri.startswith(suffix)):
                 http_requests.labels(suffix).inc()
@@ -231,16 +248,16 @@ for line in file.readlines():
 file = open(external_indicators_file, 'r')
 external_indicators = json.load(file)
 indexed_records = Gauge(
-    'opencitations_indexed_records', 
-    'Indexed records', 
+    'opencitations_indexed_records',
+    'Indexed records',
     registry=registry
 )
 indexed_records.set(
     external_indicators["indexed_records"]
 )
 harvested_data_sources = Gauge(
-    'opencitations_harvested_data_sources', 
-    'Harvested data sources', 
+    'opencitations_harvested_data_sources',
+    'Harvested data sources',
     registry=registry
 )
 harvested_data_sources.set(
@@ -251,8 +268,8 @@ file.close()
 
 # Add the date as info
 i = Info(
-    'opencitations_date', 
-    'Date to which the statistics refers to', 
+    'opencitations_date',
+    'Date to which the statistics refers to',
     registry=registry
 )
 date_split = log_file.split(sep)[-1].replace('.txt', '').replace("oc-", "")
