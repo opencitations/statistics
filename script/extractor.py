@@ -29,6 +29,8 @@ directory.
 import argparse
 import re
 import json
+import collections
+import csv
 from os.path import isdir, isfile, sep
 
 from prometheus_client import Counter, CollectorRegistry, write_to_textfile, Gauge, Info
@@ -97,6 +99,7 @@ ends_withs = {
     # SPARQL endpoints:
     '/sparql': 'sparql',
     '/index/sparql': 'sparql',
+    '/meta/sparql': 'sparql',
     '/ccc/sparql': 'sparql',
 }
 
@@ -119,6 +122,7 @@ contains = {
     '/index/coci/ci/': 'dataset',
     '/index/croci/ci/': 'dataset',
     '/ccc/': 'dataset',
+    '/meta/': 'dataset',
 
     # Additional services:
     '/oci': 'additional_services',
@@ -143,6 +147,7 @@ contains_keys = [
     '/index/coci/ci/',
     '/index/croci/ci/',
     '/ccc/',
+    '/meta/',
 
     # Additional services:
     '/oci',
@@ -161,6 +166,7 @@ contains_values = [
     'oc_api',
 
     # Dataset resources:
+    'dataset',
     'dataset',
     'dataset',
     'dataset',
@@ -210,6 +216,7 @@ for substr in contains:
 rgx = re.compile('(.*)#( REMOTE_ADDR):(.*)#( HTTP_USER_AGENT):(.*)#( HTTP_REFERER):(.*)#( HTTP_HOST):(.*)#( REQUEST_URI):(.*)#( HTTP_AUTHORIZATION):(.*)')
 
 file = open(log_file, 'r')
+aut_tokens = dict()
 for line in file.readlines():
     line = line.strip()
     match_1 = rgx.match(line)
@@ -218,6 +225,14 @@ for line in file.readlines():
 
         # split and parse the differents attributes of the current line
         request_uri = groups[10].strip()
+
+        # calc unique users
+        http_authorization = groups[12].strip().lower()
+        rgtoken = re.compile('.*-.*-.*-.*')
+        if rgtoken.match(http_authorization):
+            if http_authorization not in aut_tokens:
+                aut_tokens[http_authorization] = 0
+            aut_tokens[http_authorization] += 1
 
         # It checks if the request made is of a specific type,
         # if it's so it increases the counter of that request,
@@ -242,7 +257,6 @@ for line in file.readlines():
                     break
             if not found:
                 agg_counter.labels('others_requests').inc()
-
 
 # Additional statistics
 file = open(external_indicators_file, 'r')
@@ -275,6 +289,21 @@ i = Info(
 date_split = log_file.split(sep)[-1].replace('.txt', '').replace("oc-", "")
 date_split = date_split.split("-")
 i.info({'month': date_split[1], 'year': date_split[0]})
+
+# Add the date as info
+tokens = Info(
+    'opencitations_auth_tokens',
+    'Number of unique API users (authorization token)',
+    registry=registry
+)
+tokens.info({ 'count_calls_unique_users': str(sum(aut_tokens.values())) , 'count_unique_users': str(len(aut_tokens.keys())) })
+
+# dump tokens to csv
+output_file = log_file.split(sep)[-1].replace('.txt', '')+"-users.csv"
+with open(output_path + output_file, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    for key, value in aut_tokens.items():
+        writer.writerow([key, value])
 
 # Write the obtained statistics in a file
 output_file = log_file.split(sep)[-1].replace('.txt', '.prom')
